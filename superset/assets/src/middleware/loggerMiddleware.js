@@ -27,7 +27,7 @@ import { LOG_EVENT_TYPE_TIMING } from '../logger/LogUtils';
 import DebouncedMessageQueue from '../utils/DebouncedMessageQueue';
 
 const LOG_ENDPOINT = '/superset/log/?explode=events';
-const sendBeacon = (events) => {
+const sendBeacon = events => {
   if (events.length <= 0) {
     return;
   }
@@ -63,7 +63,7 @@ const logMessageQueue = new DebouncedMessageQueue({
   delayThreshold: 1000,
 });
 let lastEventId = 0;
-const loggerMiddleware = store => next => (action) => {
+const loggerMiddleware = store => next => action => {
   if (action.type !== LOG_EVENT) {
     return next(action);
   }
@@ -107,6 +107,7 @@ const loggerMiddleware = store => next => (action) => {
       ...eventData,
       event_type: 'user',
       event_id: lastEventId,
+      visibility: document.visibilityState,
     };
   }
 
