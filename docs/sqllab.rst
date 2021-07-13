@@ -23,7 +23,7 @@ SQL Lab is a modern, feature-rich SQL IDE written in
 
 ------
 
-.. image:: images/screenshots/sqllab.png
+.. image:: _static/images/screenshots/sqllab.png
 
 ------
 
@@ -73,21 +73,19 @@ Superset's Jinja context:
 
 - ``time``: ``time``
 - ``datetime``: ``datetime.datetime``
-- ``uuid``: ``uuid``
+- ``uuid1``: ``uuid1``
+- ``uuid3``: ``uuid3``
+- ``uuid4``: ``uuid4``
+- ``uuid5``: ``uuid5``
 - ``random``: ``random``
 - ``relativedelta``: ``dateutil.relativedelta.relativedelta``
 
 `Jinja's builtin filters <http://jinja.pocoo.org/docs/dev/templates/>`_ can be also be applied where needed.
 
-.. autofunction:: superset.jinja_context.current_user_id
-
-.. autofunction:: superset.jinja_context.current_username
-
-.. autofunction:: superset.jinja_context.url_param
+.. autoclass:: superset.jinja_context.ExtraCache
+    :members:
 
 .. autofunction:: superset.jinja_context.filter_values
-
-.. autofunction:: superset.jinja_context.CacheKeyWrapper.cache_key_wrapper
 
 .. autoclass:: superset.jinja_context.PrestoTemplateProcessor
     :members:
@@ -98,11 +96,20 @@ Superset's Jinja context:
 Extending macros
 ''''''''''''''''
 
-As mentioned in the `Installation & Configuration <https://superset.incubator.apache.org/installation.html#installation-configuration>`_ documentation,
+As mentioned in the `Installation & Configuration <https://superset.apache.org/installation.html#installation-configuration>`_ documentation,
 it's possible for administrators to expose more more macros in their
 environment using the configuration variable ``JINJA_CONTEXT_ADDONS``.
 All objects referenced in this dictionary will become available for users
 to integrate in their queries in **SQL Lab**.
+
+Customize templating
+''''''''''''''''''''
+
+As mentioned in the `Installation & Configuration <https://superset.apache.org/installation.html#sql-lab>`__ documentation,
+it's possible for administrators to overwrite Jinja templating with your customized
+template processor using the configuration variable ``CUSTOM_TEMPLATE_PROCESSORS``.
+The template processors referenced in the dictionary will overwrite default Jinja template processors
+of the specified database engines.
 
 Query cost estimation
 '''''''''''''''''''''
@@ -148,7 +155,7 @@ can optionally specify a custom formatter. Eg:
         return [{"Cost": f"US$ {cost:.2f}"}]
 
 
-    DEFAULT_FEATURE_FLAGS = {
+    FEATURE_FLAGS = {
         "ESTIMATE_QUERY_COST": True,
         "QUERY_COST_FORMATTERS_BY_ENGINE": {"presto": presto_query_cost_formatter},
     }

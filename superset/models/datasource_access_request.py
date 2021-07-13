@@ -23,12 +23,10 @@ from sqlalchemy import Column, Integer, String
 from superset import app, db, security_manager
 from superset.connectors.connector_registry import ConnectorRegistry
 from superset.models.helpers import AuditMixinNullable
-from superset.utils import core as utils
+from superset.utils.memoized import memoized
 
 if TYPE_CHECKING:
-    from superset.connectors.base.models import (  # pylint: disable=unused-import
-        BaseDatasource,
-    )
+    from superset.connectors.base.models import BaseDatasource
 
 config = app.config
 
@@ -37,12 +35,12 @@ class DatasourceAccessRequest(Model, AuditMixinNullable):
     """ORM model for the access requests for datasources and dbs."""
 
     __tablename__ = "access_request"
-    id = Column(Integer, primary_key=True)  # pylint: disable=invalid-name
+    id = Column(Integer, primary_key=True)
 
     datasource_id = Column(Integer)
     datasource_type = Column(String(200))
 
-    ROLES_BLACKLIST = set(config["ROBOT_PERMISSION_ROLES"])
+    ROLES_DENYLIST = set(config["ROBOT_PERMISSION_ROLES"])
 
     @property
     def cls_model(self) -> Type["BaseDatasource"]:
@@ -57,7 +55,7 @@ class DatasourceAccessRequest(Model, AuditMixinNullable):
         return self.get_datasource
 
     @datasource.getter  # type: ignore
-    @utils.memoized
+    @memoized
     def get_datasource(self) -> "BaseDatasource":
         ds = db.session.query(self.cls_model).filter_by(id=self.datasource_id).first()
         return ds
@@ -72,9 +70,8 @@ class DatasourceAccessRequest(Model, AuditMixinNullable):
         perm = self.datasource.perm  # pylint: disable=no-member
         pv = security_manager.find_permission_view_menu("datasource_access", perm)
         for role in pv.role:
-            if role.name in self.ROLES_BLACKLIST:
+            if role.name in self.ROLES_DENYLIST:
                 continue
-            # pylint: disable=no-member
             href = (
                 f"/superset/approve?datasource_type={self.datasource_type}&"
                 f"datasource_id={self.datasource_id}&"
@@ -87,15 +84,14 @@ class DatasourceAccessRequest(Model, AuditMixinNullable):
     @property
     def user_roles(self) -> str:
         action_list = ""
-        for role in self.created_by.roles:  # pylint: disable=no-member
-            # pylint: disable=no-member
+        for role in self.created_by.roles:
             href = (
                 f"/superset/approve?datasource_type={self.datasource_type}&"
                 f"datasource_id={self.datasource_id}&"
                 f"created_by={self.created_by.username}&role_to_extend={role.name}"
             )
             link = '<a href="{}">Extend {} Role</a>'.format(href, role.name)
-            if role.name in self.ROLES_BLACKLIST:
+            if role.name in self.ROLES_DENYLIST:
                 link = "{} Role".format(role.name)
             action_list = action_list + "<li>" + link + "</li>"
         return "<ul>" + action_list + "</ul>"

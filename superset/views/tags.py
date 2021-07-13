@@ -16,34 +16,51 @@
 # under the License.
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+from typing import Any, Dict, List
+
 import simplejson as json
 from flask import request, Response
 from flask_appbuilder import expose
+from flask_appbuilder.hooks import before_request
 from flask_appbuilder.security.decorators import has_access_api
 from jinja2.sandbox import SandboxedEnvironment
 from sqlalchemy import and_, func
+from werkzeug.exceptions import NotFound
 
-from superset import db, utils
-from superset.jinja_context import current_user_id, current_username
+from superset import db, is_feature_enabled, utils
+from superset.jinja_context import ExtraCache
 from superset.models.dashboard import Dashboard
 from superset.models.slice import Slice
 from superset.models.sql_lab import SavedQuery
 from superset.models.tags import ObjectTypes, Tag, TaggedObject, TagTypes
+from superset.typing import FlaskResponse
 
 from .base import BaseSupersetView, json_success
 
 
-def process_template(content):
+def process_template(content: str) -> str:
     env = SandboxedEnvironment()
     template = env.from_string(content)
-    context = {"current_user_id": current_user_id, "current_username": current_username}
+    context = {
+        "current_user_id": ExtraCache.current_user_id,
+        "current_username": ExtraCache.current_username,
+    }
     return template.render(context)
 
 
 class TagView(BaseSupersetView):
+    @staticmethod
+    def is_enabled() -> bool:
+        return is_feature_enabled("TAGGING_SYSTEM")
+
+    @before_request
+    def ensure_enabled(self) -> None:
+        if not self.is_enabled():
+            raise NotFound()
+
     @has_access_api
     @expose("/tags/suggestions/", methods=["GET"])
-    def suggestions(self):  # pylint: disable=no-self-use
+    def suggestions(self) -> FlaskResponse:  # pylint: disable=no-self-use
         query = (
             db.session.query(TaggedObject)
             .join(Tag)
@@ -57,7 +74,9 @@ class TagView(BaseSupersetView):
 
     @has_access_api
     @expose("/tags/<object_type:object_type>/<int:object_id>/", methods=["GET"])
-    def get(self, object_type, object_id):  # pylint: disable=no-self-use
+    def get(  # pylint: disable=no-self-use
+        self, object_type: ObjectTypes, object_id: int
+    ) -> FlaskResponse:
         """List all tags a given object has."""
         if object_id == 0:
             return json_success(json.dumps([]))
@@ -73,7 +92,9 @@ class TagView(BaseSupersetView):
 
     @has_access_api
     @expose("/tags/<object_type:object_type>/<int:object_id>/", methods=["POST"])
-    def post(self, object_type, object_id):  # pylint: disable=no-self-use
+    def post(  # pylint: disable=no-self-use
+        self, object_type: ObjectTypes, object_id: int
+    ) -> FlaskResponse:
         """Add new tags to an object."""
         if object_id == 0:
             return Response(status=404)
@@ -101,7 +122,9 @@ class TagView(BaseSupersetView):
 
     @has_access_api
     @expose("/tags/<object_type:object_type>/<int:object_id>/", methods=["DELETE"])
-    def delete(self, object_type, object_id):  # pylint: disable=no-self-use
+    def delete(  # pylint: disable=no-self-use
+        self, object_type: ObjectTypes, object_id: int
+    ) -> FlaskResponse:
         """Remove tags from an object."""
         tag_names = request.get_json(force=True)
         if not tag_names:
@@ -120,7 +143,7 @@ class TagView(BaseSupersetView):
 
     @has_access_api
     @expose("/tagged_objects/", methods=["GET", "POST"])
-    def tagged_objects(self):  # pylint: disable=no-self-use
+    def tagged_objects(self) -> FlaskResponse:  # pylint: disable=no-self-use
         tags = [
             process_template(tag)
             for tag in request.args.get("tags", "").split(",")
@@ -132,7 +155,7 @@ class TagView(BaseSupersetView):
         # filter types
         types = [type_ for type_ in request.args.get("types", "").split(",") if type_]
 
-        results = []
+        results: List[Dict[str, Any]] = []
 
         # dashboards
         if not types or "dashboard" in types:

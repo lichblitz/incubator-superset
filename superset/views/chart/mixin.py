@@ -17,8 +17,8 @@
 from flask import Markup
 from flask_babel import lazy_gettext as _
 
+from superset.dashboards.filters import DashboardAccessFilter
 from superset.views.chart.filters import SliceFilter
-from superset.views.dashboard.filters import DashboardFilter
 
 
 class SliceMixin:  # pylint: disable=too-few-public-methods
@@ -37,7 +37,13 @@ class SliceMixin:  # pylint: disable=too-few-public-methods
         "owners",
     )
     list_columns = ["slice_link", "viz_type", "datasource_link", "creator", "modified"]
-    order_columns = ["viz_type", "datasource_link", "modified"]
+    order_columns = [
+        "slice_name",
+        "viz_type",
+        "datasource_link",
+        "modified",
+        "changed_on",
+    ]
     edit_columns = [
         "slice_name",
         "description",
@@ -82,6 +88,6 @@ class SliceMixin:  # pylint: disable=too-few-public-methods
         "viz_type": _("Visualization Type"),
     }
 
-    add_form_query_rel_fields = {"dashboards": [["name", DashboardFilter, None]]}
+    add_form_query_rel_fields = {"dashboards": [["name", DashboardAccessFilter, None]]}
 
     edit_form_query_rel_fields = add_form_query_rel_fields
